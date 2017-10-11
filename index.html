@@ -125,7 +125,7 @@ $(document).ready(function () {
 
 <div id="overview" class="section level2">
 <h2>Overview</h2>
-<p>In this report, we focus on the problem of predicting the quality of execution of Unilateral Dumbbell Biceps Curl in five different fashions, as originally investigated by <a href="http://groupware.les.inf.puc-rio.br/work.jsf?p1=11201">Velloso et. al</a>. Data available from these authors is collected and split into a training set and a validation set. A set of predictors suitable for modeling is derived from the training set using a sequence of filtering strategies. An automatic model selection strategy is applied to compare different classes of models and select the best one using nested cross-validation on the training set. The final model is then applied to the validation set, and an estimate of the out-of-sample error rate is derived.</p>
+<p>In this report, we focus on the problem of predicting the quality of execution of Unilateral Dumbbell Biceps Curl in five different fashions, as originally investigated by <a href="http://groupware.les.inf.puc-rio.br/work.jsf?p1=11201">Velloso et. al</a>. Data available from these authors is collected and split into a training set and a validation set. A set of predictors suitable for modeling is derived from the training set using a sequence of filtering strategies. An automatic model selection strategy is applied to compare different classes of models and select the best one using nested cross-validation on the training set. We get an estimate of the out-of-sample error using cross-validation on the selected model and then retrain on the whole set. The final model is then applied to the validation set, and another estimate of the out-of-sample error rate is derived.</p>
 </div>
 <div id="loading-data" class="section level2">
 <h2>Loading Data</h2>
@@ -154,7 +154,7 @@ testing &lt;- read.csv(testSetFile, na.strings = c(&quot;&quot;,&quot;NA&quot;,&
 <li><p><strong>Feature selection</strong>: a possibly good set of predictors is extracted from the original set of 159 variables by filtering out irrelevant variables, variables with a significant fractions of NAs, Near-Zero-Variance predictors and using only variables which are not highly correlated;</p></li>
 <li><p><strong>Model Selection</strong>: occurs by comparing alternative classes of models using <strong>nested Cross-Validation</strong> (<span class="math inline">\(K=5\)</span>) on the reduced training set;</p></li>
 <li><p><strong>Model building and tuning</strong>: once the best classifier is selected, the choice of its optimal hyper-parameters is done using repeated K-fold (<span class="math inline">\(K=10\)</span>) cross-validation on the reduced training set using 3 repeats. The model is then retrained on the whole reduced training set using the parameters chosen in the previous CV step;</p></li>
-<li><p><strong>Out-of-sample error estimate</strong>: the final model is then applied to the validation set and results are compared to the true values to get a more realistic estimate of the out-of-sample error.</p></li>
+<li><p><strong>Out-of-sample error</strong>: this is estimated by using cross-validation on the selected model. The final model tuned in the previous step is then applied to the validation set and results are compared to the true values to confirm the estimate of the out-of-sample error.</p></li>
 </ul>
 </div>
 <div id="data-preparation" class="section level2">
@@ -264,10 +264,18 @@ for (i in 1:5) {
   }
   model_comparison &lt;- rbind(model_comparison, perfs)
 }</code></pre>
+<p>These are the accuracy results of the different models on the 5 folds:</p>
+<pre class="r"><code>model_comparison</code></pre>
+<pre><code>##          knn       qda  multinom        rf
+## 2  0.9588492 0.8932993 0.7130371 0.9970867
+## 21 0.9566800 0.8653076 0.7044048 0.9963597
+## 3  0.9548598 0.8867856 0.7069530 0.9959956
+## 4  0.9530738 0.8919607 0.7177155 0.9956348
+## 5  0.9548763 0.8828239 0.7059680 0.9967249</code></pre>
 </div>
 <div id="model-building-and-evaluation" class="section level2">
 <h2>Model Building and Evaluation</h2>
-<p>Once the best classifier is selected, the choice of its optimal hyper-parameters is done using repeated K-fold (<span class="math inline">\(K=10\)</span>) cross-validation on the reduced training set using 3 repeats. The model is then retrained on the whole reduced training set using the parameters chosen in the previous CV step:</p>
+<p>Once the best classifier is selected, the choice of its optimal hyper-parameters is done using repeated K-fold (<span class="math inline">\(K=10\)</span>) cross-validation on the reduced training set using 3 repeats and default tuning grid and parameters. The model is then retrained on the whole reduced training set using the parameters chosen in the previous CV step:</p>
 <pre class="r"><code># Model building: train selected model on the whole filtered training set
 # use repeated CV, 3 repeats
 mFit &lt;- train(classe ~ ., method = model_selection,
@@ -275,7 +283,27 @@ mFit &lt;- train(classe ~ ., method = model_selection,
               preProcess=c(&quot;center&quot;,&quot;scale&quot;), 
               trControl=trainControl(method = &quot;repeatedcv&quot;, repeats=3), 
               metric=&quot;Accuracy&quot;)</code></pre>
-<p>The final model is then used to predict the outcome on the validation set to get an accurate estimate of out-of-sample error rate:</p>
+<pre class="r"><code>mFit</code></pre>
+<pre><code>## Random Forest 
+## 
+## 13737 samples
+##    46 predictors
+##     5 classes: 'A', 'B', 'C', 'D', 'E' 
+## 
+## Pre-processing: centered (46), scaled (46) 
+## Resampling: Cross-Validated (10 fold, repeated 3 times) 
+## Summary of sample sizes: 12364, 12362, 12364, 12364, 12362, 12363, ... 
+## Resampling results across tuning parameters:
+## 
+##   mtry  Accuracy   Kappa    
+##    2    0.9941516  0.9926020
+##   24    0.9973306  0.9966233
+##   46    0.9942243  0.9926942
+## 
+## Accuracy was used to select the optimal model using  the largest value.
+## The final value used for the model was mtry = 24.</code></pre>
+<p>The above model selection procedure has selected <strong>Random Forest</strong> as the best classifier for this task. As can be seen from the above output, cross-validation led to choose random forests with the number of variables randomly sampled as candidates at each split (mtry) equal to 24. <strong>The estimated out-of-sample error rate with cross-validation is 0.0026694</strong>.</p>
+<p>The final model is then used to predict the outcome on the validation set to confirm the estimate of out-of-sample error rate:</p>
 <pre class="r"><code>mPredValidation &lt;- predict(mFit, newdata = validation)
 cmValidation &lt;- confusionMatrix(mPredValidation, validation$classe)
 cmValidation</code></pre>
@@ -310,11 +338,11 @@ cmValidation</code></pre>
 ## Detection Rate         0.2845   0.1927   0.1737   0.1633   0.1839
 ## Detection Prevalence   0.2853   0.1934   0.1740   0.1633   0.1840
 ## Balanced Accuracy      0.9994   0.9974   0.9978   0.9984   0.9999</code></pre>
-<p>We can see from the above output from the confusion matrix the out-of-sample error rate is 0.0020391.</p>
+<p>We can see from the above output from the confusion matrix the out-of-sample error rate is 0.0020391 confirming the results of cross-validation.</p>
 </div>
 <div id="results" class="section level2">
 <h2>Results</h2>
-<p>Random Forests is the final model selected by the strategy outlined in the previous section. Both nested cross-validation and blind prediction on the validation set indicate very good performance with an error rate close to zero.</p>
+<p>It appears this problem is not a very difficult one. Non-linear and prototype based models achieve very high performance with Random Forests being the best ones. The final Random Forest model selected by the strategy outlined in the previous section shows an error rate close to zero on both cross-validation and blind prediction on the validation set.</p>
 </div>
 
 

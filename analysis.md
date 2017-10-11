@@ -6,7 +6,7 @@ October 9, 2017
 
 ## Overview
 
-In this report, we focus on the problem of predicting the quality of execution of Unilateral Dumbbell Biceps Curl in five different fashions, as originally investigated by [Velloso et. al](http://groupware.les.inf.puc-rio.br/work.jsf?p1=11201). Data available from these authors is collected and split into a training set and a validation set. A set of predictors suitable for modeling is derived from the training set using a sequence of filtering strategies. An automatic model selection strategy is applied to compare different classes of models and select the best one using nested cross-validation on the training set. The final model is then applied to the validation set, and an estimate of the out-of-sample error rate is derived.
+In this report, we focus on the problem of predicting the quality of execution of Unilateral Dumbbell Biceps Curl in five different fashions, as originally investigated by [Velloso et. al](http://groupware.les.inf.puc-rio.br/work.jsf?p1=11201). Data available from these authors is collected and split into a training set and a validation set. A set of predictors suitable for modeling is derived from the training set using a sequence of filtering strategies. An automatic model selection strategy is applied to compare different classes of models and select the best one using nested cross-validation on the training set. We get an estimate of the out-of-sample error using cross-validation on the selected model and then retrain on the whole set. The final model is then applied to the validation set, and another estimate of the out-of-sample error rate is derived.
 
 ## Loading Data
 
@@ -59,7 +59,7 @@ In the following, we outline the strategy used to address the problem of this st
 
 * __Model building and tuning__: once the best classifier is selected, the choice of its optimal hyper-parameters is done using repeated K-fold ($K=10$) cross-validation on the reduced training set using 3 repeats. The model is then retrained on the whole reduced training set using the parameters chosen in the previous CV step;
 
-* __Out-of-sample error estimate__: the final model is then applied to the validation set and results are compared to the true values to get a more realistic estimate of the out-of-sample error.
+* __Out-of-sample error__: this is estimated by using cross-validation on the selected model. The final model tuned in the previous step is then applied to the validation set and results are compared to the true values to confirm the estimate of the out-of-sample error.
 
 ## Data Preparation
 
@@ -280,9 +280,25 @@ for (i in 1:5) {
 
 
 
+These are the accuracy results of the different models on the 5 folds:
+
+
+```r
+model_comparison
+```
+
+```
+##          knn       qda  multinom        rf
+## 2  0.9588492 0.8932993 0.7130371 0.9970867
+## 21 0.9566800 0.8653076 0.7044048 0.9963597
+## 3  0.9548598 0.8867856 0.7069530 0.9959956
+## 4  0.9530738 0.8919607 0.7177155 0.9956348
+## 5  0.9548763 0.8828239 0.7059680 0.9967249
+```
+
 ## Model Building and Evaluation
 
-Once the best classifier is selected, the choice of its optimal hyper-parameters is done using repeated K-fold ($K=10$) cross-validation on the reduced training set using 3 repeats. The model is then retrained on the whole reduced training set using the parameters chosen in the previous CV step:
+Once the best classifier is selected, the choice of its optimal hyper-parameters is done using repeated K-fold ($K=10$) cross-validation on the reduced training set using 3 repeats and default tuning grid and parameters. The model is then retrained on the whole reduced training set using the parameters chosen in the previous CV step:
 
 
 ```r
@@ -295,7 +311,35 @@ mFit <- train(classe ~ ., method = model_selection,
               metric="Accuracy")
 ```
 
-The final model is then used to predict the outcome on the validation set to get an accurate estimate of out-of-sample error rate:
+
+```r
+mFit
+```
+
+```
+## Random Forest 
+## 
+## 13737 samples
+##    46 predictors
+##     5 classes: 'A', 'B', 'C', 'D', 'E' 
+## 
+## Pre-processing: centered (46), scaled (46) 
+## Resampling: Cross-Validated (10 fold, repeated 3 times) 
+## Summary of sample sizes: 12364, 12362, 12364, 12364, 12362, 12363, ... 
+## Resampling results across tuning parameters:
+## 
+##   mtry  Accuracy   Kappa    
+##    2    0.9941516  0.9926020
+##   24    0.9973306  0.9966233
+##   46    0.9942243  0.9926942
+## 
+## Accuracy was used to select the optimal model using  the largest value.
+## The final value used for the model was mtry = 24.
+```
+
+The above model selection procedure has selected __Random Forest__ as the best classifier for this task. As can be seen from the above output, cross-validation led to choose random forests with the number of variables randomly sampled as candidates at each split (mtry) equal to 24. __The estimated out-of-sample error rate with cross-validation is 0.0026694__.
+
+The final model is then used to predict the outcome on the validation set to confirm the estimate of out-of-sample error rate:
 
 
 ```r
@@ -338,8 +382,8 @@ cmValidation
 ## Balanced Accuracy      0.9994   0.9974   0.9978   0.9984   0.9999
 ```
 
-We can see from the above output from the confusion matrix the out-of-sample error rate is 0.0020391.
+We can see from the above output from the confusion matrix the out-of-sample error rate is 0.0020391 confirming the results of cross-validation.
 
 ## Results
 
-Random Forests is the final model selected by the strategy outlined in the previous section. Both nested cross-validation and blind prediction on the validation set indicate very good performance with an error rate close to zero. 
+It appears this problem is not a very difficult one. Non-linear and prototype based models achieve very high performance with Random Forests being the best ones. The final Random Forest model selected by the strategy outlined in the previous section shows an error rate close to zero on both cross-validation and blind prediction on the validation set.
